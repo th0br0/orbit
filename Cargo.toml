@@ -1,0 +1,14 @@
+[package]
+name = "orbit"
+version = "0.1.0"
+authors = ["Andreas C. Osowski <andreas.chr.osowski@gmail.com>"]
+
+[dependencies]
+regex = "*"
+regex_macros = "*"
+docopt = "*"
+docopt_macros = "*"
+rustc-serialize = "*"
+
+[dependencies.sdl2]
+git = "https://github.com/th0br0/rust-sdl2"
