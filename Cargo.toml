@@ -9,6 +9,7 @@ regex_macros = "*"
 docopt = "*"
 docopt_macros = "*"
 rustc-serialize = "*"
-
-[dependencies.sdl2]
-git = "https://github.com/th0br0/rust-sdl2"
+roots = "*"
+chrono = "*"
+sdl2 = "*"
+sdl2_gfx = "*"
