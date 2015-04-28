@@ -27,7 +27,9 @@ pub struct TLE {
     perigree: f32,
     mean_anomaly: f32,
     mean_motion: f32,
-    revolution_number: i32
+    revolution_number: i32,
+
+    is_valid: bool
 }
 
 #[derive(Clone,PartialEq,Debug)]
@@ -39,13 +41,6 @@ pub enum Classification {
 #[derive(Debug)]
 pub enum DeserializationError {
     ParseError(String),
-}
-
-impl TLE {
-    #[allow(dead_code)]
-    fn validate() -> bool {
-        panic!("Fix me. We need access to the raw line data.");
-    }
 }
 
 impl From<core::num::ParseFloatError> for DeserializationError {
@@ -66,50 +61,62 @@ fn fix_string(s: String) -> String {
     }
 }
 
-pub fn deserialize_tle(input: String) -> Result<TLE, DeserializationError> {
-    //TODO can we somehow enforce the parameter to have a fixed length?
-    let lines : Vec<&str> = input.lines().collect();
-    let name = &lines[0];
-    let line1 = &lines[1];
-    let line2 = &lines[2];
+fn line_checksum(line: String) -> bool {
+    let line_cs = line.chars().rev().skip(1).filter(|&c| c.is_digit(10) || c == "-".chars().next().unwrap())
+        .fold(0,|acc, c| acc + c.to_digit(10).unwrap_or(1)) % 10;
 
-    let tle = TLE {
-        name: name.to_string(),
-        satellite_number: try!(line1[2..7].parse::<i16>()),
-        classification: match line1.as_bytes()[8] {
-            b'U' => Classification::Unclassified,
-            _ => Classification::Other
-        },
+    let line_csv = line.chars().rev().next().and_then(|c| c.to_digit(10)).unwrap();
 
-        id_launch_year: try!(line1[9..11].parse::<i8>()),
-        id_launch_number: try!(line1[11..14].parse::<i16>()),
-        id_launch_piece: line1[14..17].trim().to_string(),
-
-
-        epoch_year: try!(line1[18..20].parse::<i16>()),
-        epoch: try!(line1[20..32].trim().parse::<f32>()),
-        mean_motion_d: try!(fix_string(line1[33..43].to_string()).parse::<f32>().map(|v| v * 2.0)),
-        mean_motion_dd: try!(fix_string(line1[44..52].trim().to_string()).parse::<f32>().map(|v| v * 6.0)),
-        bstar: try!(fix_string(line1[53..61].trim().to_string()).parse::<f32>()),
-        set_number: try!(line1[64..68].trim().parse::<i32>()),
-
-        // line 2
-        inclination: try!(line2[08..16].trim().parse::<f32>()),
-        right_ascension: try!(line2[17..25].trim().parse::<f32>()),
-        eccentricity: try!(fix_string(line2[26..33].trim().to_string()).parse::<f32>()),
-        perigree: try!(line2[34..42].trim().parse::<f32>()),
-        mean_anomaly: try!(line2[43..51].trim().parse::<f32>()),
-        mean_motion: try!(line2[52..63].trim().parse::<f32>()),
-        revolution_number: try!(line2[63..68].parse::<i32>())
-    };
-
-    Ok(tle)
+    line_cs == line_csv
 }
 
-//FIXME is there some "not implemented" annotation we could use instead?"
-#[allow(dead_code, unused_variables)]
-pub fn serialize_tle(tle: TLE) -> String {
-    panic!("Not implemented.");
+impl TLE {
+
+    pub fn new(input: String) -> Result<TLE, DeserializationError> {
+        //TODO can we somehow enforce the parameter to have a fixed length?
+        let lines : Vec<&str> = input.lines().collect();
+        let name = &lines[0];
+        let line1 = &lines[1];
+        let line2 = &lines[2];
+
+        let tle = TLE {
+            name: name.to_string(),
+            satellite_number: try!(line1[2..7].parse::<i16>()),
+            classification: match line1.as_bytes()[8] {
+                b'U' => Classification::Unclassified,
+                _ => Classification::Other
+            },
+
+            id_launch_year: try!(line1[9..11].parse::<i8>()),
+            id_launch_number: try!(line1[11..14].parse::<i16>()),
+            id_launch_piece: line1[14..17].trim().to_string(),
+
+
+            epoch_year: try!(line1[18..20].parse::<i16>()),
+            epoch: try!(line1[20..32].trim().parse::<f32>()),
+            mean_motion_d: try!(fix_string(line1[33..43].to_string()).parse::<f32>().map(|v| v * 2.0)),
+            mean_motion_dd: try!(fix_string(line1[44..52].trim().to_string()).parse::<f32>().map(|v| v * 6.0)),
+            bstar: try!(fix_string(line1[53..61].trim().to_string()).parse::<f32>()),
+            set_number: try!(line1[64..68].trim().parse::<i32>()),
+
+            // line 2
+            inclination: try!(line2[08..16].trim().parse::<f32>()),
+            right_ascension: try!(line2[17..25].trim().parse::<f32>()),
+            eccentricity: try!(fix_string(line2[26..33].trim().to_string()).parse::<f32>()),
+            perigree: try!(line2[34..42].trim().parse::<f32>()),
+            mean_anomaly: try!(line2[43..51].trim().parse::<f32>()),
+            mean_motion: try!(line2[52..63].trim().parse::<f32>()),
+            revolution_number: try!(line2[63..68].parse::<i32>()),
+
+            is_valid: line_checksum(line1.to_string()) && line_checksum(line2.to_string())
+        };
+
+        Ok(tle)
+    }
+
+    pub fn  serialize(&self) -> String {
+        panic!("IMPLEMENT ME!");
+    }
 }
 
 #[cfg(test)]
@@ -121,7 +128,13 @@ mod test {
 
     #[test]
     fn test_deserialize_tle() {
-        let t = super::deserialize_tle(DATA.to_string());
-        assert!(t.is_ok());
+        let t = super::TLE::new(DATA.to_string());
+        assert!(t.is_ok() && t.unwrap().is_valid);
+    }
+
+    #[test]
+    fn test_serialize_tle() {
+        let t = super::TLE::new(DATA.to_string()).unwrap();
+        t.serialize();
     }
 }
