@@ -13,12 +13,14 @@ use std::fs::File;
 use std::error::Error;
 
 docopt!(Args derive Debug, "
-Usage:  orbit [options] (--tle TLE) --satellite SATELLITE
+Usage:  orbit movement [options] --tle TLE --satellite SATELLITE
         orbit (--help | --version)
 
 Options:
-    -s, --satellite        Satellite name to analyse
-    --tle TLE              File containing TLE for parsing satellites
+    -s, --satellite        Satellite name to analyse.
+    --tle TLE              File containing TLE for parsing satellites.
+    -o, --output           Write output to file.
+    -v, --visualize        Visualize computed data.
     -h, --help             Print this help message.
     -v, --version          Print version information.
 ");
@@ -28,16 +30,16 @@ fn main() {
 
     println!("{:?}", args);
 
-    if !args.flag_tle.is_empty(){
-        let mut file = match File::open(&args.flag_tle) {
-            Err(why) => panic!("couldn't open {}: {}", args.flag_tle, Error::description(&why)),
-            Ok(file) => file
-        };
+    // For now, docopts ensures that we've got a tle parameter
+    let mut file = match File::open(&args.flag_tle) {
+        Err(why) => panic!("couldn't open {}: {}", args.flag_tle, Error::description(&why)),
+        Ok(file) => file
+    };
 
-        let tles = tle::parse_file(&mut file);
+    let tles = tle::parse_file(&mut file);
 
-        for tle in tles {
-            println!("{:?}", tle);
-        }
-    }
+    let satellite = match tles.iter().find(|t| args.arg_SATELLITE == t.name) {
+        Some(satellite) => satellite,
+        None => panic!("Could not find satellite '{}' in tle input.", args.arg_SATELLITE)
+    };
 }
