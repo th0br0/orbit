@@ -7,6 +7,14 @@ env:
     global:
         - secure: JoeqFczBU0U3Tbn2a5pASll6Bl7vnPnucqDzcOBSPy7zkhob9WERf6hn/k9j/9Ms8Bvn0BujhQBSXNdehH9gCL0xC/vRcoNsjBbbjzfWaYll0Etc0t1bYCUxejdn76zmYtRgVUkxsfYdFdmHzQgFUVzrkKRhPB9UFRWtdD/ITTQ=
 
+addons:
+    apt:
+        packages:
+            - libsdl2
+            - libsdl2-dev
+            - libsdl2-gfx
+            - libsdl2-gfx-dev
+
 script:
     - cargo build -v
     - cargo test -v

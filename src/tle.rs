@@ -161,12 +161,12 @@ mod test {
 
     #[test]
     fn test_fix_string() {
-
+        // XXX implement me
     }
 
     #[test]
     fn test_serialize_tle() {
         let t = super::TLE::new(&DATA.to_string()).unwrap();
-        t.serialize();
+        //t.serialize();
     }
 }
