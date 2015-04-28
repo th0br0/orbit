@@ -2,6 +2,11 @@ extern crate core;
 
 use std::convert::From;
 use std::num::{ParseIntError, ParseFloatError};
+use std::fs::File;
+use std::error::Error;
+use std::str::Lines;
+use std::io::Read;
+use std::slice::Chunks;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct TLE {
@@ -62,17 +67,17 @@ fn fix_string(s: String) -> String {
 }
 
 fn line_checksum(line: String) -> bool {
-    let line_cs = line.chars().rev().skip(1).filter(|&c| c.is_digit(10) || c == "-".chars().next().unwrap())
+    let calculated_checksum = line.chars().rev().skip(1).filter(|&c| c.is_digit(10) || c == "-".chars().next().unwrap())
         .fold(0,|acc, c| acc + c.to_digit(10).unwrap_or(1)) % 10;
 
-    let line_csv = line.chars().rev().next().and_then(|c| c.to_digit(10)).unwrap();
+    let expected_checksum = line.chars().rev().next().and_then(|c| c.to_digit(10)).unwrap();
 
-    line_cs == line_csv
+    calculated_checksum == expected_checksum
 }
 
 impl TLE {
 
-    pub fn new(input: String) -> Result<TLE, DeserializationError> {
+    pub fn new(input: &String) -> Result<TLE, DeserializationError> {
         //TODO can we somehow enforce the parameter to have a fixed length?
         let lines : Vec<&str> = input.lines().collect();
         let name = &lines[0];
@@ -111,12 +116,28 @@ impl TLE {
             is_valid: line_checksum(line1.to_string()) && line_checksum(line2.to_string())
         };
 
+        // Maybe return Err if is_valid = false?
         Ok(tle)
     }
 
     pub fn  serialize(&self) -> String {
         panic!("IMPLEMENT ME!");
     }
+}
+
+pub fn parse_file(file: &mut File) -> Vec<TLE> {
+    // maybe move the IO interaction into the caller?
+    let mut s = String::new();
+    match file.read_to_string(&mut s) {
+        Err(why) => panic!("couldn't read TLE file: {}", Error::description(&why)),
+        Ok(_) => {}
+    }
+
+    let lines = s.lines().collect::<Vec<&str>>();
+    let chunks : Vec<String> = lines.chunks(3).map(|chunk| chunk.iter().fold(String::new(), |acc, c| acc + c.trim() + "\n")).collect();
+
+    // FIXME - we're dropping invalid TLEs silently!!!
+    chunks.iter().map(|c| TLE::new(c)).filter(|t| t.is_ok()).map(|t| t.unwrap()).collect()
 }
 
 #[cfg(test)]
@@ -128,13 +149,13 @@ mod test {
 
     #[test]
     fn test_deserialize_tle() {
-        let t = super::TLE::new(DATA.to_string());
+        let t = super::TLE::new(&DATA.to_string());
         assert!(t.is_ok() && t.unwrap().is_valid);
     }
 
     #[test]
     fn test_serialize_tle() {
-        let t = super::TLE::new(DATA.to_string()).unwrap();
+        let t = super::TLE::new(&DATA.to_string()).unwrap();
         t.serialize();
     }
 }
