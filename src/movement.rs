@@ -51,18 +51,18 @@ pub fn calculate(tle: tle::TLE,
                                    .map(|i| {
                                        let time = start + (stepping * i);
                                        let e = satellite.eccentric_anomaly(time).unwrap();
-                                       let v = (satellite.true_anomaly(e) + 360_f64) % 360_f64;
+                                       let v = satellite.true_anomaly(e);
 
                                        let r_v = a.map(|a| {
                                                       a *
                                                       ((1.0 - satellite.eccentricity().powi(2)) /
-                                                       (1.0 + satellite.eccentricity() * v.to_radians().cos()))
+                                                       (1.0 + satellite.eccentricity() * v.cos()))
                                                   })
                                                   .unwrap();
 
                                        Sample {
                                            timestamp: time,
-                                           angle: v,
+                                           angle: (v.to_degrees() + 360f64) % 360f64,
                                            radius: r_v,
                                        }
                                    })

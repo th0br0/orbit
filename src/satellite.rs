@@ -2,6 +2,7 @@ use std::f64::consts::PI;
 use chrono::*;
 use std::ops::Sub;
 use roots;
+use std::cell::Cell;
 
 
 #[derive(Clone, PartialEq, Debug)]
@@ -32,7 +33,7 @@ pub trait Satellite<T> {
     }
 
     fn semimajor_axis_ideal(&self) -> f64 {
-        (self.body().mu * (self.period_of_revolution() / (2f64 * PI)).powi(2)).powf(1_f64 / 3_f64)
+        (self.body().mu * (self.period_of_revolution() / (2f64 * PI)).powi(2)).cbrt()
     }
 
     fn semiminor_axis_ideal(&self) -> f64 {
@@ -43,19 +44,19 @@ pub trait Satellite<T> {
     }
 
     fn distance_apogee_approx(&self) -> Option<f64> {
-        self.semimajor_axis_approx().map(|a| a * (1_f64 + self.eccentricity()))
+        self.semimajor_axis_approx().map(|a| a * (1.0 + self.eccentricity()))
     }
 
     fn distance_perigee_approx(&self) -> Option<f64> {
-        self.semimajor_axis_approx().map(|a| a * (1_f64 - self.eccentricity()))
+        self.semimajor_axis_approx().map(|a| a * (1.0 - self.eccentricity()))
     }
 
     fn distance_apogee(&self) -> f64 {
-        self.semimajor_axis_ideal() * (1_f64 + self.eccentricity())
+        self.semimajor_axis_ideal() * (1.0 + self.eccentricity())
     }
 
     fn distance_perigee(&self) -> f64 {
-        self.semimajor_axis_ideal() * (1_f64 - self.eccentricity())
+        self.semimajor_axis_ideal() * (1.0 - self.eccentricity())
     }
 
     fn semiminor_axis_approx(&self) -> Option<f64> {
@@ -70,26 +71,29 @@ pub trait Satellite<T> {
         let eccentricity = self.eccentricity(); // no unit
         let inclination = self.inclination().to_radians(); // deg in tle, we need radians
 
-        let tmp = (1f64 - eccentricity.powi(2)).powf(-1.5f64) *
-                  (1f64 - 1.5f64 * inclination.sin().powi(2));
+        let tmp = (1.0 - eccentricity.powi(2)).powf(-1.5) *
+                  (1.0 - 1.5 * inclination.sin().powi(2));
         let n = |a: f64| -> f64 {
-            (mu / a.powi(3)).sqrt() * (1f64 + 1.5f64 * j2 * (r / a).powi(2) * tmp)
+            (mu / a.powi(3)).sqrt() * (1.0 + 1.5 * j2 * (r / a).powi(2) * tmp)
         };
 
         let n_deriv = |a: f64| -> f64 {
             mu.sqrt() *
-            ((-1.5f64) * a.powf(-2.5f64) +
-             (-3.5f64) * a.powf(-4.5f64) * 1.5f64 * j2 * r.powi(2) * tmp)
+            ((-1.5) * a.powf(-2.5) +
+             (-3.5) * a.powf(-4.5) * 1.5 * j2 * r.powi(2) * tmp)
         };
 
         // let n_norad = (self.body().mu / self.semimajor_axis_ideal().powi(3)).sqrt();
-        let n_norad = 2f64 * PI / self.period_of_revolution();
+        let n_norad = 2.0 * PI / self.period_of_revolution();
         let n_delta = |a: f64| -> f64 { n(a) - n_norad };
 
         let convergency = roots::SimpleConvergency {
-            eps: 1e-9_f64,
-            max_iter: 30,
+            eps: 1.0e-14,
+            max_iter: 50
         };
+
+        let mut a1 = 0f64;
+        let mut a2 = self.semimajor_axis_ideal();
 
         roots::find_root_newton_raphson(self.semimajor_axis_ideal(),
                                         &n_delta,
@@ -100,8 +104,7 @@ pub trait Satellite<T> {
 
     fn eccentric_anomaly(&self, time: DateTime<UTC>) -> Option<f64> {
         let delta_t = time.sub(self.timestamp());
-        let delta_t_epoch = (delta_t.num_days() as f64) +
-                            (((delta_t.num_seconds() as f64) % 86400.0) / 86400.0);
+        let delta_t_epoch = (delta_t.num_nanoseconds().unwrap() as f64) * 1.0e-9 / 86400f64;
 
         let eccentricity = self.eccentricity();
         // mean_anomaly is in degrees => convert to radians
@@ -113,23 +116,22 @@ pub trait Satellite<T> {
         let e_deriv = |e: f64| -> f64 { 1f64 - eccentricity * e.cos() };
 
         let convergency = roots::SimpleConvergency {
-            eps: 1e-5_f64,
+            eps: 1.0e-12,
             max_iter: 30,
         };
 
         roots::find_root_newton_raphson(M, &e_delta, &e_deriv, &convergency)
             .ok()
-            .map(|e| e.to_degrees())
     }
 
     fn true_anomaly(&self, ea: f64) -> f64 {
         let eccentricity = self.eccentricity();
-        let E = (ea * 0.5).to_radians();
+        let E = (ea * 0.5);
 
         let y = (1.0 + eccentricity).sqrt() * E.sin();
         let x = (1.0 - eccentricity).sqrt() * E.cos();
 
-        2.0 * y.atan2(x).to_degrees()
+        2.0 * y.atan2(x)
     }
 }
 
@@ -168,7 +170,7 @@ mod test {
         println!("SemiMin Approx: {:?}", satellite.semiminor_axis_approx());
         println!("distance_perigee: {}", satellite.distance_perigee());
         println!("distance_apogee: {}", satellite.distance_apogee());
-        assert!(satellite.distance_perigee() == 6717901.720_f64);
+        assert!(satellite.distance_perigee() == 6717901.720);
     }
 
 }

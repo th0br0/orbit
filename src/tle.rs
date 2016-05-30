@@ -166,7 +166,7 @@ impl TLE {
                 let days = line1[20..23].parse::<u32>().unwrap();
                 let offset = 3600_f64 * 24_f64 * line1[23..32].parse::<f64>().unwrap();
                 UTC.yo(year, days)
-                   .and_time(NaiveTime::from_num_seconds_from_midnight(offset as u32, 0))
+                   .and_time(NaiveTime::from_num_seconds_from_midnight(offset as u32, ((offset % 1.0)* 1.0e9) as u32))
                    .ok_or(DeserializationError::ParseError("Timestamp parsing failed.".to_string()))
             }),
             mean_motion_d: try!(fix_string(line1[33..43].trim().to_string())
