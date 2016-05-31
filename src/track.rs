@@ -9,6 +9,7 @@ use std::fs::File;
 use std::ops::*;
 use std::fmt;
 use std::io::prelude::*;
+use std::f64::consts::PI;
 
 use sdl2;
 use sdl2::render::Renderer;
@@ -20,17 +21,30 @@ use sdl2_gfx::primitives::*;
 #[derive(Debug)]
 struct Sample {
     timestamp: DateTime<UTC>,
-    angle: f64,
+
+    real_anomaly: f64,
     radius: f64,
+    longitude_ascending_node: f64,
+    argument_periapsis: f64,
+
+    lambda_g: f64,
+
+    theta: f64,
+    lambda: f64
 }
 
 impl fmt::Display for Sample {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "{} {:.6} {:.6}",
+               "{} {:.6} {:.6} {:.4} {:.4} {:.4} {:.4} {:.4}",
                self.timestamp.format("%H:%M:%S"),
-               self.angle,
-               self.radius)
+               self.real_anomaly,
+               self.radius,
+               self.longitude_ascending_node,
+               self.argument_periapsis,
+               self.lambda_g,
+               self.theta,
+               self.lambda)
     }
 }
 
@@ -51,20 +65,54 @@ pub fn calculate(tle: tle::TLE,
     let samples: Vec<Sample> = (0..steps)
                                    .map(|i| {
                                        let time = start + (stepping * i);
+
+                                       let delta_t = time.sub(satellite.timestamp());
+
+                                       let start_epoch = (satellite.timestamp().sub(UTC.yo(start.year(), 1)
+                                                                   .and_time(NaiveTime::from_num_seconds_from_midnight(0,0)).unwrap()).num_nanoseconds()
+                                           .unwrap() as f64) * 1.0e-9 /86400f64;
+
+                                       let delta_t_epoch = (delta_t.num_nanoseconds().unwrap() as f64) * 1.0e-9 / 86400f64;
+
                                        let e = satellite.eccentric_anomaly(time).unwrap();
                                        let v = satellite.true_anomaly(e);
 
                                        let r_v = a.map(|a| {
-                                                      a *
-                                                      ((1.0 - satellite.eccentricity().powi(2)) /
-                                                       (1.0 + satellite.eccentricity() * v.cos()))
-                                                  })
-                                                  .unwrap();
+                                           a *
+                                               ((1.0 - satellite.eccentricity().powi(2)) /
+                                                (1.0 + satellite.eccentricity() * v.cos()))
+                                       }).unwrap();
+
+
+                                       let omega_big = satellite.longitude_ascending_node(time).unwrap();
+                                       let omega_small = satellite.argument_periapsis(time).unwrap();
+
+                                       let lambda_g = (satellite.body().lambda + (start_epoch + delta_t_epoch) * satellite.body().we) % 360.0;
+
+                                       let i_rad = satellite.inclination().to_radians();
+                                       let theta = ((omega_small + v).sin() * i_rad.sin()).asin();
+                                       let l1 = (theta.tan() / i_rad.tan()).atan2(
+                                                    (omega_small + v).cos() / theta.cos()
+                                               );
+                                       let lambda = (l1 + omega_big - lambda_g.to_radians()).to_degrees();
+
+                                       // XXX find a better way to do this.
+                                       let lambda_normalized : f64 = if (lambda < -180.0) {
+                                              lambda % 180.0 
+                                           } else if (lambda > 180.0) {
+                                               -180.0 + (lambda % 180.0)
+                                           } else { lambda };
 
                                        Sample {
                                            timestamp: time,
-                                           angle: (v.to_degrees() + 360f64) % 360f64,
+
+                                           real_anomaly: (v.to_degrees() + 360f64) % 360f64,
                                            radius: r_v,
+                                           longitude_ascending_node: omega_big.to_degrees(),
+                                           argument_periapsis: omega_small.to_degrees(),
+                                           lambda_g: lambda_g,
+                                           theta: theta.to_degrees(),
+                                           lambda: lambda_normalized
                                        }
                                    })
                                    .collect();
@@ -74,14 +122,14 @@ pub fn calculate(tle: tle::TLE,
         let _ = file.write_all(result.join("\n").as_bytes());
     }
 
-    if flag_visualize {
+/*    if flag_visualize {
         visualize(a.unwrap(),
                   satellite.distance_apogee_approx().unwrap(),
                   satellite.distance_perigee_approx().unwrap(),
                   samples);
-    }
+    }*/
 }
-
+/*
 fn visualize(a: f64, r_apogee: f64, r_perigee: f64, mut samples: Vec<Sample>) {
     // normalize the radii
     // determine maximum radius.
@@ -202,3 +250,4 @@ fn draw(renderer: &mut sdl2::render::Renderer,
     draw_satellite(samples.first().unwrap(), perigee_color);
     draw_satellite(samples.last().unwrap(), apogee_color);
 }
+*/

@@ -7,6 +7,7 @@ use std::error::Error;
 use std::io::Read;
 use chrono::*;
 use satellite;
+use body;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct TLE {
@@ -61,19 +62,27 @@ impl From<ParseIntError> for DeserializationError {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Satellite {
-    body: satellite::Body,
+    body: body::Body,
     tle: TLE,
 }
 
 impl satellite::Satellite<TLE> for Satellite {
-    fn new(body: satellite::Body, tle: TLE) -> Satellite {
+    fn new(body: body::Body, tle: TLE) -> Satellite {
         Satellite {
             body: body,
             tle: tle,
         }
     }
-    fn body(&self) -> &satellite::Body {
+    fn body(&self) -> &body::Body {
         &self.body
+    }
+
+    fn right_ascension(&self) -> f64 {
+        self.tle.right_ascension as f64
+    }
+
+    fn perigree(&self) -> f64 {
+        self.tle.perigree as f64
     }
 
     fn mean_anomaly(&self) -> f64 {

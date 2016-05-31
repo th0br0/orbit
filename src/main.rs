@@ -9,9 +9,11 @@ extern crate chrono;
 extern crate sdl2;
 extern crate sdl2_gfx;
 
+mod body;
 mod tle;
 mod satellite;
 mod movement;
+mod track;
 
 use docopt::Docopt;
 use std::fs::File;
@@ -73,6 +75,11 @@ fn main() {
                             args.flag_visualize,
                             File::create(&args.flag_output).ok());
     } else if args.cmd_track {
-        println!("{:?}", args);
+        track::calculate(satellite,
+                            start,
+                            end,
+                            stepping,
+                            args.flag_visualize,
+                            File::create(&args.flag_output).ok());
     } 
 }

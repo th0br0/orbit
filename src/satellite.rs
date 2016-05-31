@@ -3,24 +3,13 @@ use chrono::*;
 use std::ops::Sub;
 use roots;
 use std::cell::Cell;
-
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct Body {
-    mu: f64,
-    radius: f64,
-    j2: f64,
-}
-
-pub const EARTH: Body = Body {
-    mu: 398600_f64,
-    radius: 6378.14_f64,
-    j2: 0.00108263_f64,
-};
+use body::Body;
 
 pub trait Satellite<T> {
     fn new(body: Body, t: T) -> Self;
     fn body(&self) -> &Body;
+    fn right_ascension(&self) -> f64;
+    fn perigree(&self) -> f64;
     fn mean_motion(&self) -> f64;
     fn mean_motion_d(&self) -> f64;
     fn mean_anomaly(&self) -> f64;
@@ -92,9 +81,6 @@ pub trait Satellite<T> {
             max_iter: 50
         };
 
-        let mut a1 = 0f64;
-        let mut a2 = self.semimajor_axis_ideal();
-
         roots::find_root_newton_raphson(self.semimajor_axis_ideal(),
                                         &n_delta,
                                         &n_deriv,
@@ -108,7 +94,7 @@ pub trait Satellite<T> {
 
         let eccentricity = self.eccentricity();
         // mean_anomaly is in degrees => convert to radians
-        // mean_motion is rev*d^-1, so multiply with days since epochh and convert to rad
+        // mean_motion is rev*d^-1, so multiply with days since epoch and convert to rad
         let M = self.mean_anomaly().to_radians() + (self.mean_motion() * delta_t_epoch * 2.0 * PI);
 
         let e = |e: f64| -> f64 { e - eccentricity * e.sin() };
@@ -117,8 +103,9 @@ pub trait Satellite<T> {
 
         let convergency = roots::SimpleConvergency {
             eps: 1.0e-12,
-            max_iter: 30,
+            max_iter: 50,
         };
+
 
         roots::find_root_newton_raphson(M, &e_delta, &e_deriv, &convergency)
             .ok()
@@ -132,6 +119,39 @@ pub trait Satellite<T> {
         let x = (1.0 - eccentricity).sqrt() * E.cos();
 
         2.0 * y.atan2(x)
+    }
+
+    fn longitude_ascending_node(&self, time: DateTime<UTC>) -> Option<f64> {
+        let delta_t = time.sub(self.timestamp());
+        let delta_t_epoch = (delta_t.num_nanoseconds().unwrap() as f64) * 1.0e-9 / 86400f64;
+
+        let a = self.semimajor_axis_approx();
+        let omega_dot = |a: f64| -> f64 {
+            1.5 * self.body().j2
+                * (self.body().radius / a).powi(2) 
+                * self.mean_motion() * 2.0 * PI // n
+                * (1.0 - self.eccentricity().powi(2)).powi(-2)
+                * self.inclination().to_radians().cos()
+        };
+
+        a.map(|a| self.right_ascension().to_radians() - omega_dot(a) * delta_t_epoch)
+    }
+
+    fn argument_periapsis(&self, time: DateTime<UTC>) -> Option<f64> {
+        let delta_t = time.sub(self.timestamp());
+        let delta_t_epoch = (delta_t.num_nanoseconds().unwrap() as f64) * 1.0e-9 / 86400f64;
+
+        let a = self.semimajor_axis_approx();
+        let omega_dot = |a: f64| -> f64 {
+            1.5 * self.body().j2
+                * (self.body().radius / a).powi(2)
+                * self.mean_motion() * 2.0 * PI // n
+                * (1.0 - self.eccentricity().powi(2)).powi(-2)
+                * (2.0 - 2.5 * self.inclination().to_radians().sin().powi(2))
+        };
+
+
+        a.map(|a| self.perigree().to_radians() + omega_dot(a) * delta_t_epoch)
     }
 }
 
