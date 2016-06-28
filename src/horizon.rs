@@ -121,7 +121,7 @@ pub fn calculate(tle: tle::TLE,
 
                                        // XXX find a better way to do this.
                                        let lambda_deg : f64 = if (lambda_tmp < -180.0) {
-                                              lambda_tmp % 180.0 
+                                              lambda_tmp % 180.0
                                            } else if (lambda_tmp > 180.0) {
                                                -180.0 + (lambda_tmp % 180.0)
                                            } else { lambda_tmp };
@@ -147,7 +147,7 @@ pub fn calculate(tle: tle::TLE,
                                            argument_periapsis: omega_small.to_degrees(),
                                            lambda_g: lambda_g,
                                            theta: theta.to_degrees(),
-                                           lambda: ((PI + lambda) % PI).to_degrees(),
+                                           lambda: lambda_deg, //((PI + lambda) % PI).to_degrees(),
                                            azimuth: azimuth.to_degrees(),
                                            elevation: elevation.to_degrees()
                                        }
