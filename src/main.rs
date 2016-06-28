@@ -14,6 +14,7 @@ mod tle;
 mod satellite;
 mod movement;
 mod track;
+mod horizon;
 
 use docopt::Docopt;
 use std::fs::File;
@@ -24,6 +25,7 @@ docopt!(Args derive Debug, "
 Usage:
   orbit movement [options] --tle TLE --satellite SATELLITE --start START --end END --stepping STEPPING
   orbit track [options] --tle TLE --satellite SATELLITE --start START --end END --stepping STEPPING
+  orbit horizon [options] --tle TLE --satellite SATELLITE --start START --end END --stepping STEPPING --ground-lat LAT --ground-lon LON --ground-radius RADIUS
   orbit -h | --help
   orbit -V | --version
 
@@ -76,10 +78,23 @@ fn main() {
                             File::create(&args.flag_output).ok());
     } else if args.cmd_track {
         track::calculate(satellite,
-                            start,
-                            end,
-                            stepping,
-                            args.flag_visualize,
-                            File::create(&args.flag_output).ok());
-    } 
+                         start,
+                         end,
+                         stepping,
+                         args.flag_visualize,
+                         File::create(&args.flag_output).ok());
+    } else if args.cmd_horizon {
+        let latitude = args.arg_LAT.parse::<f64>().unwrap();
+        let longitude = args.arg_LON.parse::<f64>().unwrap();
+        let radius = args.arg_RADIUS.parse::<f64>().unwrap();
+        horizon::calculate(satellite,
+                           start,
+                           end,
+                           stepping,
+                           args.flag_visualize,
+                           File::create(&args.flag_output).ok(),
+                           latitude,
+                           longitude,
+                           radius);
+    }
 }

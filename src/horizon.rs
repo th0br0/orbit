@@ -24,6 +24,7 @@ struct Sample {
 
     real_anomaly: f64,
     radius: f64,
+    distance: f64,
     longitude_ascending_node: f64,
     argument_periapsis: f64,
 
@@ -31,20 +32,26 @@ struct Sample {
 
     theta: f64,
     lambda: f64,
+
+    azimuth: f64,
+    elevation: f64,
 }
 
 impl fmt::Display for Sample {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "{} {:.6} {:.6} {:.4} {:.4} {:.4} {:.4} {:.4}",
+               "{} {:.4} {:.4} {:.4} {:.4} {:.4} {:.4} {:.4} {:.4} {:.4} {:.4}",
                self.timestamp.format("%H:%M:%S"),
                self.real_anomaly,
                self.radius,
+               self.distance,
                self.longitude_ascending_node,
                self.argument_periapsis,
                self.lambda_g,
                self.theta,
-               self.lambda)
+               self.lambda,
+               self.azimuth,
+               self.elevation)
     }
 }
 
@@ -53,7 +60,10 @@ pub fn calculate(tle: tle::TLE,
                  end: DateTime<UTC>,
                  stepping: Duration,
                  flag_visualize: bool,
-                 output: Option<File>) {
+                 output: Option<File>,
+                 latitude: f64,
+                 longitude: f64,
+                 radius: f64) {
     let satellite: tle::Satellite = satellite::Satellite::new(EARTH, tle);
 
     let steps = 1 + (end.sub(start).num_seconds() / stepping.num_seconds()) as i32;
@@ -61,6 +71,17 @@ pub fn calculate(tle: tle::TLE,
     let a = satellite.semimajor_axis_approx();
     println!("Total number samples: {}", steps);
     println!("Semi-major axis: {:?}km", a.unwrap());
+
+    let theta_ground = latitude.to_radians();
+    let lambda_ground = longitude.to_radians();
+    let radius_ground = radius;
+
+    println!("Ground station: R: {}, Lat {}, Lat Rad {}, Lon {}, Lon Rad {}",
+             radius_ground,
+             latitude,
+             theta_ground,
+             longitude,
+             lambda_ground);
 
     let samples: Vec<Sample> = (0..steps)
                                    .map(|i| {
@@ -94,27 +115,44 @@ pub fn calculate(tle: tle::TLE,
                                        let l1 = (theta.tan() / i_rad.tan()).atan2(
                                                     (omega_small + v).cos() / theta.cos()
                                                );
-                                       let lambda = (l1 + omega_big - lambda_g.to_radians()).to_degrees();
+
+                                       let lambda = (l1 + omega_big - lambda_g.to_radians());
+                                       let lambda_tmp = lambda.to_degrees();
 
                                        // XXX find a better way to do this.
-                                       let lambda_normalized : f64 = if (lambda < -180.0) {
-                                              lambda % 180.0 
-                                           } else if (lambda > 180.0) {
-                                               -180.0 + (lambda % 180.0)
-                                           } else { lambda };
+                                       let lambda_deg : f64 = if (lambda_tmp < -180.0) {
+                                              lambda_tmp % 180.0 
+                                           } else if (lambda_tmp > 180.0) {
+                                               -180.0 + (lambda_tmp % 180.0)
+                                           } else { lambda_tmp };
+
+
+                                       let beta = (theta_ground.sin() * theta.sin() + theta_ground.cos() * theta.cos() * (lambda - lambda_ground).cos()).acos();
+                                       let distance = (radius_ground.powi(2) + r_v.powi(2) - 2.0*radius_ground*r_v*beta.cos()).sqrt();
+
+                                       let elevation = ((r_v.powi(2) - distance.powi(2) - radius_ground.powi(2))/(2.0 * radius_ground * distance)).asin();
+
+                                       let alpha_sin = ((lambda - lambda_ground).sin() * (0.5 * PI - theta).sin()) / beta.sin();
+                                       let alpha_cos = ((0.5 * PI - theta).cos() - (0.5 * PI - theta_ground).cos() * beta.cos()) / ((0.5 * PI - theta_ground).sin() * beta.sin());
+                                       let azimuth = alpha_sin.atan2(alpha_cos);
 
                                        Sample {
                                            timestamp: time,
 
                                            real_anomaly: (v.to_degrees() + 360f64) % 360f64,
                                            radius: r_v,
+                                           distance: distance,
+
                                            longitude_ascending_node: omega_big.to_degrees(),
                                            argument_periapsis: omega_small.to_degrees(),
                                            lambda_g: lambda_g,
                                            theta: theta.to_degrees(),
-                                           lambda: lambda_normalized
+                                           lambda: ((PI + lambda) % PI).to_degrees(),
+                                           azimuth: azimuth.to_degrees(),
+                                           elevation: elevation.to_degrees()
                                        }
                                    })
+        .filter(|s| s.elevation > -3.0)
                                    .collect();
 
     if let Some(mut file) = output {

@@ -60,16 +60,13 @@ pub trait Satellite<T> {
         let eccentricity = self.eccentricity(); // no unit
         let inclination = self.inclination().to_radians(); // deg in tle, we need radians
 
-        let tmp = (1.0 - eccentricity.powi(2)).powf(-1.5) *
-                  (1.0 - 1.5 * inclination.sin().powi(2));
+        let tmp = (1.0 - eccentricity.powi(2)).powf(-1.5) * (1.0 - 1.5 * inclination.sin().powi(2));
         let n = |a: f64| -> f64 {
             (mu / a.powi(3)).sqrt() * (1.0 + 1.5 * j2 * (r / a).powi(2) * tmp)
         };
 
         let n_deriv = |a: f64| -> f64 {
-            mu.sqrt() *
-            ((-1.5) * a.powf(-2.5) +
-             (-3.5) * a.powf(-4.5) * 1.5 * j2 * r.powi(2) * tmp)
+            mu.sqrt() * ((-1.5) * a.powf(-2.5) + (-3.5) * a.powf(-4.5) * 1.5 * j2 * r.powi(2) * tmp)
         };
 
         // let n_norad = (self.body().mu / self.semimajor_axis_ideal().powi(3)).sqrt();
@@ -78,7 +75,7 @@ pub trait Satellite<T> {
 
         let convergency = roots::SimpleConvergency {
             eps: 1.0e-14,
-            max_iter: 50
+            max_iter: 50,
         };
 
         roots::find_root_newton_raphson(self.semimajor_axis_ideal(),
@@ -107,8 +104,7 @@ pub trait Satellite<T> {
         };
 
 
-        roots::find_root_newton_raphson(M, &e_delta, &e_deriv, &convergency)
-            .ok()
+        roots::find_root_newton_raphson(M, &e_delta, &e_deriv, &convergency).ok()
     }
 
     fn true_anomaly(&self, ea: f64) -> f64 {
@@ -130,8 +126,8 @@ pub trait Satellite<T> {
             1.5 * self.body().j2
                 * (self.body().radius / a).powi(2) 
                 * self.mean_motion() * 2.0 * PI // n
-                * (1.0 - self.eccentricity().powi(2)).powi(-2)
-                * self.inclination().to_radians().cos()
+                * (1.0 - self.eccentricity().powi(2)).powi(-2) *
+            self.inclination().to_radians().cos()
         };
 
         a.map(|a| self.right_ascension().to_radians() - omega_dot(a) * delta_t_epoch)
@@ -146,8 +142,8 @@ pub trait Satellite<T> {
             1.5 * self.body().j2
                 * (self.body().radius / a).powi(2)
                 * self.mean_motion() * 2.0 * PI // n
-                * (1.0 - self.eccentricity().powi(2)).powi(-2)
-                * (2.0 - 2.5 * self.inclination().to_radians().sin().powi(2))
+                * (1.0 - self.eccentricity().powi(2)).powi(-2) *
+            (2.0 - 2.5 * self.inclination().to_radians().sin().powi(2))
         };
 
 

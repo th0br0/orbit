@@ -148,11 +148,11 @@ fn draw(renderer: &mut sdl2::render::Renderer,
 
     let scale = 0.9f32;
     let mut viewport = Rect::from_center(viewport_orig.center(),
-                                     ((viewport_orig.width() as f32) * scale) as u32,
-                                     ((viewport_orig.height() as f32) * scale) as u32);
+                                         ((viewport_orig.width() as f32) * scale) as u32,
+                                         ((viewport_orig.height() as f32) * scale) as u32);
 
-    //viewport.offset(((1_f64 - scale) as u32 * viewport_orig.width()) as i32, ((1_f64 - scale) as u32* viewport_orig.height()) as i32);
-    //renderer.set_viewport(Some(viewport));
+    // viewport.offset(((1_f64 - scale) as u32 * viewport_orig.width()) as i32, ((1_f64 - scale) as u32* viewport_orig.height()) as i32);
+    // renderer.set_viewport(Some(viewport));
 
     let w = viewport.width() as f64;
     let h = viewport.height() as f64;
@@ -179,8 +179,14 @@ fn draw(renderer: &mut sdl2::render::Renderer,
     let planet_cy = cy;
 
     // Draw apogee & perigee
-    let _ = renderer.hline(viewport.left() as i16, viewport.left() as i16 + planet_cx, planet_cy, apogee_color);
-    let _ = renderer.hline(viewport.left() as i16 + planet_cx, viewport.right() as i16, planet_cy, perigee_color);
+    let _ = renderer.hline(viewport.left() as i16,
+                           viewport.left() as i16 + planet_cx,
+                           planet_cy,
+                           apogee_color);
+    let _ = renderer.hline(viewport.left() as i16 + planet_cx,
+                           viewport.right() as i16,
+                           planet_cy,
+                           perigee_color);
 
     let _ = renderer.filled_circle(planet_cx, planet_cy, planet_r, planet_color);
     let _ = renderer.pixel(planet_cx, planet_cy, satellite_color);
@@ -192,7 +198,10 @@ fn draw(renderer: &mut sdl2::render::Renderer,
         let x = (s.angle.to_radians().cos() * s.radius * r_apogee_l) as i16;
         let y = (s.angle.to_radians().sin() * s.radius * r_apogee_l) as i16;
 
-        renderer.filled_circle(viewport.left() as i16 + planet_cx + x, planet_cy + y, satellite_r, c);
+        renderer.filled_circle(viewport.left() as i16 + planet_cx + x,
+                               planet_cy + y,
+                               satellite_r,
+                               c);
     };
 
     for sample in samples {

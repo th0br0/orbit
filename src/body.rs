@@ -4,7 +4,7 @@ pub struct Body {
     pub radius: f64,
     pub j2: f64,
     pub lambda: f64,
-    pub we: f64
+    pub we: f64,
 }
 
 pub const EARTH: Body = Body {
@@ -12,5 +12,5 @@ pub const EARTH: Body = Body {
     radius: 6378.14_f64,
     j2: 0.00108263_f64,
     lambda: 99.281,
-    we: 360.98564735
+    we: 360.98564735,
 };
